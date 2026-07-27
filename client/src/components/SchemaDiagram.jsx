@@ -19,28 +19,34 @@ const MODES = ["collapsed", "keys", "all"];
 const MODE_LABELS = { collapsed: "Collapsed", keys: "Keys only", all: "All columns" };
 const MODE_ICONS = { collapsed: "▢", keys: "🔑", all: "▤" };
 
-// Manually-dragged table positions, persisted across reloads. Single flat
-// key is fine — this app points at one database per deployment.
-const STORAGE_KEY = "schemaDiagramPositions";
+// Manually-dragged table positions, persisted across reloads. Keyed per
+// focus table so a linked-tables view's layout doesn't collide with the
+// whole-DB layout or another table's linked-tables view.
+function storageKeyFor(focusTable) {
+  return focusTable ? `schemaDiagramPositions:${focusTable}` : "schemaDiagramPositions";
+}
 
-function loadSavedPositions() {
+function loadSavedPositions(focusTable) {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {};
+    return JSON.parse(localStorage.getItem(storageKeyFor(focusTable))) ?? {};
   } catch {
     return {};
   }
 }
 
-function savePositions(positionsByTableName) {
+function savePositions(focusTable, positionsByTableName) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(positionsByTableName));
+    localStorage.setItem(storageKeyFor(focusTable), JSON.stringify(positionsByTableName));
   } catch {
     // localStorage unavailable/full — dragging still works for this session.
   }
 }
 
-// props: { schema: { tables, foreignKeys }, onSelectTable }
-export default function SchemaDiagram({ schema, onSelectTable }) {
+// props: { schema: { tables, foreignKeys }, onSelectTable, onShowNeighbors, focusTable }
+// When focusTable is set, the diagram is scoped to just that table and its
+// direct FK neighbors (structure only, no hub-table filtering) instead of
+// the whole DB.
+export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, focusTable }) {
   const [hoveredTable, setHoveredTable] = useState(null);
   const [showHubTables, setShowHubTables] = useState(false);
   // Raw ELK layout result (position per node, recomputed only on structural
@@ -86,10 +92,15 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
     [schema]
   );
 
+  const neighborNames = useMemo(
+    () => (focusTable ? getNeighborTables(focusTable, schema.foreignKeys) : null),
+    [focusTable, schema.foreignKeys]
+  );
+
   const { rawNodes, rawEdges } = useMemo(() => {
-    const visibleTables = schema.tables.filter(
-      (t) => showHubTables || !hubNames.has(t.name)
-    );
+    const visibleTables = focusTable
+      ? schema.tables.filter((t) => t.name === focusTable || neighborNames.has(t.name))
+      : schema.tables.filter((t) => showHubTables || !hubNames.has(t.name));
     const visibleNames = new Set(visibleTables.map((t) => t.name));
 
     const nodes = visibleTables.map((t) => {
@@ -113,6 +124,8 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
           onSelect: onSelectTable,
           onHover: setHoveredTable,
           onToggle: toggleNodeColumns,
+          onShowNeighbors,
+          isFocus: focusTable ? t.name === focusTable : false,
         },
         width: 240,
         height,
@@ -132,7 +145,17 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
       }));
 
     return { rawNodes: nodes, rawEdges: edges };
-  }, [schema, onSelectTable, showHubTables, hubNames, columnOverrides, globalModeIndex]);
+  }, [
+    schema,
+    onSelectTable,
+    onShowNeighbors,
+    focusTable,
+    neighborNames,
+    showHubTables,
+    hubNames,
+    columnOverrides,
+    globalModeIndex,
+  ]);
 
   function nodeStyleFor(id, hovered, foreignKeys) {
     if (!hovered) return undefined;
@@ -148,7 +171,7 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
     let cancelled = false;
     layoutGraphElk(rawNodes, rawEdges).then((result) => {
       if (cancelled) return;
-      const saved = loadSavedPositions();
+      const saved = loadSavedPositions(focusTable);
       const positioned = result.map((n) => ({
         ...n,
         position: saved[n.id] ?? n.position,
@@ -217,7 +240,7 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
     nodes.forEach((n) => {
       positions[n.id] = n.position;
     });
-    savePositions(positions);
+    savePositions(focusTable, positions);
   }
 
   return (
@@ -240,7 +263,7 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
         </ControlButton>
       </Controls>
       <MiniMap />
-      {hubNames.size > 0 && (
+      {!focusTable && hubNames.size > 0 && (
         <Panel position="top-left">
           <button onClick={() => setShowHubTables((v) => !v)} style={toggleBtnStyle}>
             {showHubTables

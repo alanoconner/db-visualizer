@@ -11,7 +11,7 @@ const SIDES = [
   { side: "right", position: Position.Right },
 ];
 
-// data: { name, columns, columnMode, fkColumnNames, onSelect, onHover, onToggle }
+// data: { name, columns, columnMode, fkColumnNames, onSelect, onHover, onToggle, onShowNeighbors, isFocus }
 export default function TableNode({ data }) {
   const pkColumns = data.columns.filter((c) => c.isPrimaryKey);
   const collapsed = data.columnMode === "collapsed";
@@ -25,13 +25,18 @@ export default function TableNode({ data }) {
     data.onToggle(data.name);
   }
 
+  function showNeighbors(e) {
+    e.stopPropagation();
+    data.onShowNeighbors(data.name);
+  }
+
   return (
     <div
       onClick={() => data.onSelect && data.onSelect(data.name)}
       onMouseEnter={() => data.onHover && data.onHover(data.name)}
       onMouseLeave={() => data.onHover && data.onHover(null)}
       style={{
-        border: "1px solid #444",
+        border: data.isFocus ? "1px solid #5c9eff" : "1px solid #444",
         borderRadius: 6,
         background: "#1e1e1e",
         color: "#eee",
@@ -62,9 +67,16 @@ export default function TableNode({ data }) {
         }}
       >
         <span>{data.name}</span>
-        <button onClick={toggleCollapsed} style={toggleBtnStyle} title={collapsed ? "Expand columns" : "Collapse columns"}>
-          {collapsed ? "+" : "−"}
-        </button>
+        <span style={{ display: "flex", gap: 4 }}>
+          {data.onShowNeighbors && (
+            <button onClick={showNeighbors} style={toggleBtnStyle} title="Show linked tables">
+              🔗
+            </button>
+          )}
+          <button onClick={toggleCollapsed} style={toggleBtnStyle} title={collapsed ? "Expand columns" : "Collapse columns"}>
+            {collapsed ? "+" : "−"}
+          </button>
+        </span>
       </div>
       {collapsed ? (
         <div style={{ padding: "3px 10px", color: "#888" }}>

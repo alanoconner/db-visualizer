@@ -8,7 +8,7 @@ export default function App() {
   const [schema, setSchema] = useState(null);
   const [error, setError] = useState(null);
 
-  // mode: "schema" | "pickRow" | "data"
+  // mode: "schema" | "pickRow" | "data" | "neighbors"
   const [mode, setMode] = useState("schema");
   const [activeTable, setActiveTable] = useState(null);
   const [activeRow, setActiveRow] = useState(null);
@@ -27,6 +27,11 @@ export default function App() {
     setActiveTable(tableName);
     setActiveRow(row);
     setMode("data");
+  }
+
+  function handleShowNeighbors(tableName) {
+    setActiveTable(tableName);
+    setMode("neighbors");
   }
 
   if (error) {
@@ -55,13 +60,18 @@ export default function App() {
           <span style={{ color: "#888" }}>
             {mode === "pickRow" && `Select a row in "${activeTable}" to see linked data`}
             {mode === "data" && `Linked data for "${activeTable}"`}
+            {mode === "neighbors" && `Linked tables for "${activeTable}"`}
           </span>
         )}
       </div>
 
       <div style={{ height: "calc(100% - 40px)" }}>
         {mode === "schema" && (
-          <SchemaDiagram schema={schema} onSelectTable={handleSelectTable} />
+          <SchemaDiagram
+            schema={schema}
+            onSelectTable={handleSelectTable}
+            onShowNeighbors={handleShowNeighbors}
+          />
         )}
 
         {mode === "pickRow" && activeTable && (
@@ -80,6 +90,14 @@ export default function App() {
             rootTable={activeTable}
             rootRow={activeRow}
             onDrillInto={handleDrillInto}
+          />
+        )}
+
+        {mode === "neighbors" && activeTable && (
+          <SchemaDiagram
+            schema={schema}
+            focusTable={activeTable}
+            onShowNeighbors={handleShowNeighbors}
           />
         )}
       </div>
