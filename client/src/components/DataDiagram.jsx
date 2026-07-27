@@ -6,6 +6,30 @@ import { fetchLinked } from "../api.js";
 
 const nodeTypes = { linked: LinkedTableNode };
 
+// Manually-dragged node positions, persisted per root row so one row's
+// layout doesn't bleed into another's.
+const STORAGE_PREFIX = "dataDiagramPositions:";
+
+function positionsKey(rootTable, pkColumn, pkValue) {
+  return `${STORAGE_PREFIX}${rootTable}:${pkColumn}=${pkValue}`;
+}
+
+function loadSavedPositions(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function savePositions(key, positionsByNodeId) {
+  try {
+    localStorage.setItem(key, JSON.stringify(positionsByNodeId));
+  } catch {
+    // localStorage unavailable/full — dragging still works for this session.
+  }
+}
+
 // props: { schema, rootTable, rootRow, onDrillInto }
 export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto }) {
   const [linked, setLinked] = useState([]);
@@ -55,7 +79,7 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
     };
 
     const linkedNodes = linked.map((l, i) => ({
-      id: `${l.table}:${i}`,
+      id: `${l.table}:${l.direction}:${l.via}`,
       type: "linked",
       width: 340,
       height: 220,
@@ -65,18 +89,31 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
 
     const linkedEdges = linked.map((l, i) => ({
       id: `edge-${i}`,
-      source: l.direction === "references" ? rootNode.id : `${l.table}:${i}`,
-      target: l.direction === "references" ? `${l.table}:${i}` : rootNode.id,
+      source: l.direction === "references" ? rootNode.id : `${l.table}:${l.direction}:${l.via}`,
+      target: l.direction === "references" ? `${l.table}:${l.direction}:${l.via}` : rootNode.id,
       label: l.via,
       style: { stroke: "#888" },
       labelStyle: { fill: "#aaa", fontSize: 10 },
     }));
 
     const allNodes = [rootNode, ...linkedNodes];
-    setNodes(layoutGraph(allNodes, linkedEdges));
+    const laidOut = layoutGraph(allNodes, linkedEdges);
+    const key = positionsKey(rootTable, pkColumn, rootRow[pkColumn]);
+    const saved = loadSavedPositions(key);
+    setNodes(laidOut.map((n) => ({ ...n, position: saved[n.id] ?? n.position })));
     setEdges(linkedEdges);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked]);
+
+  // Persist positions once a drag ends, keyed to the currently rooted row.
+  function handleNodeDragStop() {
+    const key = positionsKey(rootTable, pkColumn, rootRow[pkColumn]);
+    const positions = {};
+    nodes.forEach((n) => {
+      positions[n.id] = n.position;
+    });
+    savePositions(key, positions);
+  }
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -95,6 +132,7 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeDragStop={handleNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
         style={{ background: "#141414" }}

@@ -19,6 +19,26 @@ const MODES = ["collapsed", "keys", "all"];
 const MODE_LABELS = { collapsed: "Collapsed", keys: "Keys only", all: "All columns" };
 const MODE_ICONS = { collapsed: "▢", keys: "🔑", all: "▤" };
 
+// Manually-dragged table positions, persisted across reloads. Single flat
+// key is fine — this app points at one database per deployment.
+const STORAGE_KEY = "schemaDiagramPositions";
+
+function loadSavedPositions() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function savePositions(positionsByTableName) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(positionsByTableName));
+  } catch {
+    // localStorage unavailable/full — dragging still works for this session.
+  }
+}
+
 // props: { schema: { tables, foreignKeys }, onSelectTable }
 export default function SchemaDiagram({ schema, onSelectTable }) {
   const [hoveredTable, setHoveredTable] = useState(null);
@@ -128,9 +148,14 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
     let cancelled = false;
     layoutGraphElk(rawNodes, rawEdges).then((result) => {
       if (cancelled) return;
-      setLayoutNodes(result);
+      const saved = loadSavedPositions();
+      const positioned = result.map((n) => ({
+        ...n,
+        position: saved[n.id] ?? n.position,
+      }));
+      setLayoutNodes(positioned);
       setNodes(
-        result.map((n) => ({
+        positioned.map((n) => ({
           ...n,
           style: nodeStyleFor(n.id, hoveredTable, schema.foreignKeys),
         }))
@@ -184,11 +209,23 @@ export default function SchemaDiagram({ schema, onSelectTable }) {
       });
   }, [layoutNodes, rawNodes, rawEdges, hoveredTable]);
 
+  // Persist positions once a drag ends (not on every intermediate move).
+  // Saves every node's current position, not just the one that was directly
+  // dragged, so multi-select drags are captured in full.
+  function handleNodeDragStop() {
+    const positions = {};
+    nodes.forEach((n) => {
+      positions[n.id] = n.position;
+    });
+    savePositions(positions);
+  }
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onNodeDragStop={handleNodeDragStop}
       nodeTypes={nodeTypes}
       fitView
       style={{ background: "#141414" }}

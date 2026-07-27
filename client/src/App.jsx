@@ -65,7 +65,7 @@ export default function App() {
         )}
 
         {mode === "pickRow" && activeTable && (
-          <div style={{ padding: 16, maxWidth: 700 }}>
+          <div style={{ padding: 16, height: "100%", boxSizing: "border-box" }}>
             <DataGrid
               table={activeTable}
               pageSize={10}
