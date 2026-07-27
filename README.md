@@ -1,26 +1,59 @@
 # db-visualizer
 
-Point it at a Postgres database and get an interactive, read-only visual
-explorer for it — no setup beyond a connection string.
+**db-visualizer** is a free, open-source, self-hosted tool for visualizing a
+PostgreSQL database. Point it at a connection string and it turns your
+schema into an interactive **ER diagram** (entity-relationship diagram) and
+lets you browse and follow **foreign-key relationships** row by row — no
+config beyond `DATABASE_URL`, and no writes ever touch your database.
 
-1. **Whole-DB ER diagram** — every table, its columns, and foreign-key
-   relationships, as a draggable/zoomable graph. Switch between collapsed,
-   keys-only, and all-columns views. Click a table to browse its rows.
+If you've searched for a *Postgres schema visualizer*, an *ER diagram
+generator*, a *database relationship graph tool*, or a lightweight
+*self-hosted alternative to pgAdmin's ERD view / DbSchema / SchemaSpy*,
+this is that tool.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-only-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Node](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+## Table of contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Requirements](#requirements)
+- [Run it](#run-it)
+- [Local dev (without Docker)](#local-dev-without-docker)
+- [How it works](#how-it-works)
+- [Security model](#security-model)
+- [Current scope / known limitations](#current-scope--known-limitations)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+1. **Whole-database ER diagram** — every table, its columns, and
+   foreign-key relationships, rendered as a draggable, zoomable graph.
+   Switch between collapsed, keys-only, and all-columns views. Click a
+   table to browse its rows.
 2. **Linked-data diagram** — pick a row, and it draws a graph of that row
    plus every row in directly-linked tables (one hop out, both directions
-   along foreign keys). Each linked table is paginated and has a
-   "custom query" button to scope it to specific columns/rows.
-
-Node positions you drag are remembered (via `localStorage`) so the layout
-stays put across reloads.
+   along foreign keys) — a live, row-level view of how your data connects.
+   Each linked table is paginated and has a "custom query" button to scope
+   it to specific columns/rows.
+3. **Persisted layout** — node positions you drag are saved to
+   `localStorage`, so your layout survives page reloads.
+4. **Read-only by construction** — every query, including custom ones,
+   runs inside a `READ ONLY` Postgres transaction. See
+   [Security model](#security-model).
 
 ## Screenshots
 
-<!--
-  Add screenshots here, e.g.:
-  ![Whole-DB ER diagram](docs/screenshots/schema-diagram.png)
-  ![Linked-data diagram](docs/screenshots/data-diagram.png)
--->
+![db-visualizer PostgreSQL ER diagram showing tables and foreign-key relationships](docs/screenshots/screen1.png)
+
+![db-visualizer ER diagram with a foreign-key relationship highlighted between tables](docs/screenshots/screen2.png)
+
+![db-visualizer linked-data diagram following foreign keys from a single row](docs/screenshots/screen3.png)
 
 ## Requirements
 
@@ -92,13 +125,39 @@ a full-access one whenever possible.
 
 ## Current scope / known limitations
 
-- **Postgres only.** Other databases aren't supported.
+- **Postgres only.** Other databases (MySQL, SQLite, MongoDB, etc.) aren't
+  supported.
 - **Linked-data traversal is one hop only** from the selected row (tables
   it references, and tables that reference it). Multi-hop traversal is a
   natural next step but isn't implemented — row-level FK graphs explode
   fast beyond one hop, so it needs a deliberate depth control.
 - No authentication — this is a local/trusted-environment tool, not
   designed to be exposed publicly.
+
+## FAQ
+
+**What is db-visualizer?**
+A self-hosted web app that generates an interactive ER diagram from a live
+PostgreSQL database and lets you click through rows along foreign-key
+relationships, instead of hand-drawing a schema diagram or scrolling
+through `psql \d` output.
+
+**Is it safe to point at a production database?**
+Every query runs in a Postgres `READ ONLY` transaction with a statement
+timeout, including the custom-query feature — see
+[Security model](#security-model). That said, for anything you care about,
+connect with a read-only Postgres role as an extra layer, and be mindful
+of query load on a live production instance.
+
+**Does it support MySQL, SQLite, or other databases?**
+Not currently — schema introspection is built on Postgres's
+`information_schema` and `pg` client library specifically.
+
+**How is this different from pgAdmin's ERD tool, DBeaver, or SchemaSpy?**
+Those are general-purpose database clients/admin tools with ERD views
+bolted on. db-visualizer does one thing: a fast, read-only, row-linked
+visual explorer you can spin up with `docker-compose up` and no database
+client installation.
 
 ## Contributing
 
