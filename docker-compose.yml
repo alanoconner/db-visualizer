@@ -1,0 +1,10 @@
+services:
+  db-visualizer:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      # Point this at your existing Postgres instance.
+      # If Postgres is also running in Docker on the same machine, use
+      # host.docker.internal instead of localhost.
+      DATABASE_URL: ${DATABASE_URL}
