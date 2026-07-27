@@ -66,6 +66,8 @@ this is that tool.
 ## Run it
 
 ```bash
+git clone https://github.com/alanoconner/db-visualizer.git
+cd db-visualizer
 cp .env.example .env   # then edit DATABASE_URL
 docker-compose up --build
 ```
