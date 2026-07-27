@@ -1,5 +1,7 @@
 # db-visualizer
 
+[English](README.md) | [日本語](README.ja.md)
+
 **db-visualizer** is a free, open-source, self-hosted tool for visualizing a
 PostgreSQL database. Point it at a connection string and it turns your
 schema into an interactive **ER diagram** (entity-relationship diagram) and
