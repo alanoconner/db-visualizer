@@ -10,8 +10,16 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// pg only enables SSL for sslmode values it recognizes as requiring full
+// certificate verification, which fails against the self-signed/managed
+// certs most remote Postgres hosts present. Since this tool only ever reads
+// schema/rows, treat any non-disabled sslmode as "encrypt, don't verify".
+const sslMode = new URL(process.env.DATABASE_URL).searchParams.get("sslmode");
+const ssl = sslMode && sslMode !== "disable" ? { rejectUnauthorized: false } : undefined;
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl,
   // keep the pool small — this tool is for exploration, not app traffic
   max: 5,
 });
