@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ReactFlow, { Background, Controls } from "reactflow";
+import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from "reactflow";
 import LinkedTableNode from "./LinkedTableNode.jsx";
 import { layoutGraph } from "../layout.js";
 import { fetchLinked } from "../api.js";
@@ -33,7 +33,13 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
     };
   }, [rootTable, pkColumn, rootRow, schema.foreignKeys]);
 
-  const { nodes, edges } = useMemo(() => {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Only (re)lay out the graph when a genuinely new root row's linked data
+  // arrives — not on every render — so manual drags/resizes aren't wiped out
+  // by an unrelated parent re-render (e.g. onDrillInto's identity changing).
+  useEffect(() => {
     const rootNode = {
       id: `${rootTable}:root`,
       type: "linked",
@@ -67,11 +73,10 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
     }));
 
     const allNodes = [rootNode, ...linkedNodes];
-    return {
-      nodes: layoutGraph(allNodes, linkedEdges),
-      edges: linkedEdges,
-    };
-  }, [rootTable, rootRow, linked, onDrillInto]);
+    setNodes(layoutGraph(allNodes, linkedEdges));
+    setEdges(linkedEdges);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked]);
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -85,7 +90,15 @@ export default function DataDiagram({ schema, rootTable, rootRow, onDrillInto })
           {error}
         </div>
       )}
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView style={{ background: "#141414" }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        fitView
+        style={{ background: "#141414" }}
+      >
         <Background color="#333" gap={16} />
         <Controls />
       </ReactFlow>

@@ -62,8 +62,8 @@ export default function DataGrid({
   const needsPagination = (total ?? rows.length) > pageSize;
 
   return (
-    <div style={{ fontSize: 11, fontFamily: "monospace" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+    <div style={{ fontSize: 11, fontFamily: "monospace", display: "flex", flexDirection: "column", height: "100%", width: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, flexShrink: 0 }}>
         <span style={{ color: "#888" }}>
           {total !== null ? `${total} rows` : `${rows.length} rows (custom query)`}
         </span>
@@ -91,7 +91,7 @@ export default function DataGrid({
       {error && <div style={{ color: "#e66" }}>{error}</div>}
       {loading && <div style={{ color: "#888" }}>loading…</div>}
 
-      <div style={{ maxHeight: 160, overflow: "auto", border: "1px solid #333" }}>
+      <div style={{ flex: 1, minHeight: 100, overflow: "auto", border: "1px solid #333" }}>
         <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
             <tr>
@@ -121,7 +121,7 @@ export default function DataGrid({
       </div>
 
       {showPagination && !queryMode && (
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, flexShrink: 0 }}>
           <button disabled={offset === 0} onClick={() => loadPage(Math.max(0, offset - pageSize))} style={btnStyle}>
             prev
           </button>
