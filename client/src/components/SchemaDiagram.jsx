@@ -49,6 +49,8 @@ function savePositions(focusTable, positionsByTableName) {
 export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, focusTable }) {
   const [hoveredTable, setHoveredTable] = useState(null);
   const [showHubTables, setShowHubTables] = useState(false);
+  const [tableSearch, setTableSearch] = useState("");
+  const [flowInstance, setFlowInstance] = useState(null);
   // Raw ELK layout result (position per node, recomputed only on structural
   // graph changes) — kept separate from the draggable `nodes` state below so
   // edge handle-side selection always uses the laid-out positions, not
@@ -97,10 +99,17 @@ export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, 
     [focusTable, schema.foreignKeys]
   );
 
+  const normalizedSearch = tableSearch.trim().toLowerCase();
+
   const { rawNodes, rawEdges } = useMemo(() => {
     const visibleTables = focusTable
       ? schema.tables.filter((t) => t.name === focusTable || neighborNames.has(t.name))
-      : schema.tables.filter((t) => showHubTables || !hubNames.has(t.name));
+      : schema.tables.filter((t) => {
+          if (normalizedSearch) {
+            return t.name.toLowerCase().includes(normalizedSearch);
+          }
+          return showHubTables || !hubNames.has(t.name);
+        });
     const visibleNames = new Set(visibleTables.map((t) => t.name));
 
     const nodes = visibleTables.map((t) => {
@@ -151,6 +160,7 @@ export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, 
     onShowNeighbors,
     focusTable,
     neighborNames,
+    normalizedSearch,
     showHubTables,
     hubNames,
     columnOverrides,
@@ -189,6 +199,20 @@ export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawNodes, rawEdges]);
+
+  // Refocus the viewport after filtering. Waiting for the next animation
+  // frame gives React Flow time to register the freshly laid-out nodes.
+  useEffect(() => {
+    if (!flowInstance || focusTable || layoutNodes.length === 0) return;
+    const frame = requestAnimationFrame(() => {
+      flowInstance.fitView({
+        nodes: layoutNodes.map((node) => ({ id: node.id })),
+        padding: 0.25,
+        duration: 250,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [flowInstance, focusTable, layoutNodes]);
 
   // Hover-driven neighbor dimming: patch style on the existing node objects
   // in place rather than rebuilding from layoutNodes, so a dragged node's
@@ -247,6 +271,7 @@ export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, 
     <ReactFlow
       nodes={nodes}
       edges={edges}
+      onInit={setFlowInstance}
       onNodesChange={onNodesChange}
       onNodeDragStop={handleNodeDragStop}
       nodeTypes={nodeTypes}
@@ -263,13 +288,43 @@ export default function SchemaDiagram({ schema, onSelectTable, onShowNeighbors, 
         </ControlButton>
       </Controls>
       <MiniMap />
-      {!focusTable && hubNames.size > 0 && (
+      {!focusTable && (
+        <Panel position="top-center">
+          <div style={searchPanelStyle}>
+            <div style={searchFieldWrapStyle}>
+              <span aria-hidden="true" style={searchIconStyle}>⌕</span>
+              <input
+                type="search"
+                value={tableSearch}
+                onChange={(event) => setTableSearch(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+                placeholder={`Search ${schema.tables.length} tables…`}
+                aria-label="Search tables"
+                autoComplete="off"
+                spellCheck="false"
+                style={searchInputStyle}
+              />
+            </div>
+            {normalizedSearch && (
+              <div style={searchCountStyle}>
+                {rawNodes.length} {rawNodes.length === 1 ? "table" : "tables"} found
+              </div>
+            )}
+          </div>
+        </Panel>
+      )}
+      {!focusTable && !normalizedSearch && hubNames.size > 0 && (
         <Panel position="top-left">
           <button onClick={() => setShowHubTables((v) => !v)} style={toggleBtnStyle}>
             {showHubTables
               ? "Hide junction tables"
               : `Show junction tables (${hubNames.size} hidden)`}
           </button>
+        </Panel>
+      )}
+      {!focusTable && normalizedSearch && rawNodes.length === 0 && (
+        <Panel position="top-center" style={{ marginTop: 96 }}>
+          <div style={emptySearchStyle}>No tables match “{tableSearch.trim()}”</div>
         </Panel>
       )}
     </ReactFlow>
@@ -285,4 +340,54 @@ const toggleBtnStyle = {
   cursor: "pointer",
   fontFamily: "sans-serif",
   fontSize: 12,
+};
+
+const searchPanelStyle = {
+  width: 320,
+  fontFamily: "sans-serif",
+};
+
+const searchFieldWrapStyle = {
+  position: "relative",
+};
+
+const searchIconStyle = {
+  position: "absolute",
+  left: 11,
+  top: "50%",
+  transform: "translateY(-50%)",
+  color: "#888",
+  pointerEvents: "none",
+  fontSize: 18,
+};
+
+const searchInputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  background: "#1e1e1e",
+  color: "#eee",
+  border: "1px solid #555",
+  borderRadius: 6,
+  padding: "9px 12px 9px 34px",
+  fontFamily: "monospace",
+  fontSize: 13,
+  outline: "none",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+};
+
+const searchCountStyle = {
+  color: "#999",
+  fontSize: 11,
+  textAlign: "center",
+  marginTop: 5,
+};
+
+const emptySearchStyle = {
+  color: "#999",
+  background: "#1e1e1e",
+  border: "1px solid #333",
+  borderRadius: 6,
+  padding: "10px 14px",
+  fontFamily: "sans-serif",
+  fontSize: 13,
 };

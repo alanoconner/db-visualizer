@@ -5,8 +5,8 @@
 **db-visualizer** is a free, open-source, self-hosted tool for visualizing a
 PostgreSQL database. Point it at a connection string and it turns your
 schema into an interactive **ER diagram** (entity-relationship diagram) and
-lets you browse and follow **foreign-key relationships** row by row — no
-config beyond `DATABASE_URL`, and no writes ever touch your database.
+lets you browse and follow **foreign-key relationships** row by row — paste
+your connection URL into the launch screen, and no writes ever touch your database.
 
 If you've searched for a *Postgres schema visualizer*, an *ER diagram
 generator*, a *database relationship graph tool*, or a lightweight
@@ -45,7 +45,9 @@ this is that tool.
    it to specific columns/rows.
 3. **Persisted layout** — node positions you drag are saved to
    `localStorage`, so your layout survives page reloads.
-4. **Read-only by construction** — every query, including custom ones,
+4. **Table search** — quickly filter large schemas by table name from the
+   main ER diagram.
+5. **Read-only by construction** — every query, including custom ones,
    runs inside a `READ ONLY` Postgres transaction. See
    [Security model](#security-model).
 
@@ -68,20 +70,19 @@ this is that tool.
 ```bash
 git clone https://github.com/alanoconner/db-visualizer.git
 cd db-visualizer
-cp .env.example .env   # then edit DATABASE_URL
 docker-compose up --build
 ```
 
-Open http://localhost:4000.
+Open http://localhost:4000, then enter your PostgreSQL connection URL.
 
 If your Postgres is also running in Docker on the same machine, use
-`host.docker.internal` instead of `localhost` in `DATABASE_URL`.
+`host.docker.internal` instead of `localhost` in the URL you enter.
 
 ### Local dev (without Docker)
 
 ```bash
 npm install
-npm start                                  # API server on :4000
+npm start                                  # API server on :4000 (no DB URL needed)
 
 # in a second terminal
 cd client && npm install && npm run dev    # Vite dev server on :5173, proxies /api -> :4000

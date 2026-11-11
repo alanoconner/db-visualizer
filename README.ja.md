@@ -17,7 +17,8 @@
    カスタムクエリによる絞り込みも可能です。
 3. **レイアウトの保存** — ドラッグしたノードの位置は `localStorage` に保存され、
    再読み込み後も維持されます。
-4. **構造的に読み取り専用** — カスタムクエリを含む全てのクエリは Postgres の
+4. **テーブル検索** — メインの ER 図からテーブル名で大規模なスキーマを絞り込めます。
+5. **構造的に読み取り専用** — カスタムクエリを含む全てのクエリは Postgres の
    `READ ONLY` トランザクション内で実行されます。詳細はセキュリティモデルの項を
    参照してください。
 
@@ -38,13 +39,12 @@
 ## 実行方法
 
 ```bash
-cp .env.example .env   # DATABASE_URL を編集
 docker-compose up --build
 ```
 
-http://localhost:4000 を開いてください。
+http://localhost:4000 を開き、画面に PostgreSQL の接続 URL を入力してください。
 
-同じマシンの Docker 上で Postgres を動かしている場合は、`DATABASE_URL` の
+同じマシンの Docker 上で Postgres を動かしている場合は、入力する URL の
 `localhost` の代わりに `host.docker.internal` を使用してください。
 
 ## セキュリティモデル

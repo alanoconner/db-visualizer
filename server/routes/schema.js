@@ -73,6 +73,10 @@ schemaRouter.get("/schema", async (req, res) => {
       })),
     });
   } catch (err) {
+    if (err.code === "DATABASE_NOT_CONFIGURED") {
+      res.status(503).json({ error: err.message });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: err.message });
   }
