@@ -4,12 +4,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { schemaRouter } from "./routes/schema.js";
 import { dataRouter } from "./routes/data.js";
+import { connectionRouter } from "./routes/connection.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api", connectionRouter);
 app.use("/api", schemaRouter);
 app.use("/api", dataRouter);
 

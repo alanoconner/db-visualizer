@@ -14,11 +14,10 @@ A tool that points at a Postgres database and visualizes it:
 ## Running it
 
 ```bash
-cp .env.example .env   # then edit DATABASE_URL
 docker-compose up --build
 ```
 
-Opens at http://localhost:4000. If Postgres also runs in Docker on the same machine, use `host.docker.internal` instead of `localhost` in `DATABASE_URL`.
+Opens at http://localhost:4000. Enter the PostgreSQL connection URL on the launch screen. If Postgres also runs in Docker on the same machine, use `host.docker.internal` instead of `localhost` in the URL.
 
 ### Local dev (without Docker)
 
@@ -37,7 +36,8 @@ Two independent npm packages: root (`server/`, Express) and `client/` (React + V
 
 ### Server (`server/`)
 
-- `db.js` — the only place that touches Postgres. Every query runs inside `readOnlyQuery()`, which wraps it in a `BEGIN TRANSACTION READ ONLY` + a 5s `statement_timeout`. This is the core safety invariant of the whole app: **nothing this tool does can mutate the target database**, including user-typed custom queries. Any new route that queries the DB must go through this function, not a raw `pool.query`.
+- `db.js` — the only place that touches Postgres. The pool is configured at runtime from the launch screen. Every query runs inside `readOnlyQuery()`, which wraps it in a `BEGIN TRANSACTION READ ONLY` + a 5s `statement_timeout`. This is the core safety invariant of the whole app: **nothing this tool does can mutate the target database**, including user-typed custom queries. Any new route that queries the DB must go through this function, not a raw `pool.query`.
+- `routes/connection.js` — runtime connection status, connect, and disconnect endpoints. Connection URLs are held only in the server-side pool and are never returned to the browser.
 - `routes/schema.js` — `GET /api/schema`. Introspects `information_schema` (columns, primary keys, foreign keys) for the `public` schema and shapes it into `{ tables: [{ name, columns }], foreignKeys: [...] }`. This shape is the contract the entire frontend is built around.
 - `routes/data.js` — table row fetching, custom queries, and linked-row lookup. Two defense layers guard against SQL injection since table/column names can't be parameterized:
   - `quoteIdent()` — whitelists identifiers to `^[a-zA-Z_][a-zA-Z0-9_]*$` before interpolating them into SQL, used for every table/column name that comes from the client (URL params or request body).
